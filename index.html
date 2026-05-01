@@ -1,0 +1,521 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Terminal, FileText, Edit, Unlock, Lock, AlertTriangle, ShieldAlert, Send, Download } from 'lucide-react';
+
+// --- DONNÉES HISTORIQUES ET QUESTIONS ---
+
+const QUESTIONS = {
+  'tonkin': {
+    question: "Quel événement survenu en août 1964 a été utilisé par l'administration Johnson pour justifier publiquement l'escalade militaire massive, bien que ce document prouve que des plans existaient déjà ?",
+    options: [
+      "L'offensive du Têt",
+      "L'incident du Golfe du Tonkin",
+      "La chute de Diên Biên Phu"
+    ],
+    correctIndex: 1,
+    hint: "Des destroyers américains auraient été attaqués par des torpilleurs nord-vietnamiens."
+  },
+  'dominos': {
+    question: "Selon la doctrine justifiant l'intervention américaine, la chute d'un pays au communisme entraînerait inévitablement celle de ses voisins. Comment nomme-t-on cette doctrine politique ?",
+    options: [
+      "La doctrine Truman",
+      "La théorie de l'endiguement absolu",
+      "La théorie des dominos"
+    ],
+    correctIndex: 2,
+    hint: "Pensez à un jeu de société où la chute d'une pièce fait tomber les autres."
+  },
+  'escalade': {
+    question: "Malgré l'envoi de centaines de milliers de soldats, les rapports secrets montraient que la victoire était impossible. Qui était le Secrétaire à la Défense qui a fini par douter de cette guerre et a commandé cette étude secrète ?",
+    options: [
+      "Robert McNamara",
+      "Henry Kissinger",
+      "John F. Kennedy"
+    ],
+    correctIndex: 0,
+    hint: "Il était un ancien dirigeant de Ford Motor Company avant de rejoindre le Pentagone."
+  },
+  'credibility': {
+    question: "Comment les journalistes américains appelaient-ils l'écart grandissant entre les déclarations optimistes du gouvernement (qui disait gagner la guerre) et la réalité sanglante du terrain ?",
+    options: [
+      "Le mensonge d'État (State Lie)",
+      "Le fossé de crédibilité (Credibility Gap)",
+      "L'illusion de Washington (Washington Illusion)"
+    ],
+    correctIndex: 1,
+    hint: "C'est un terme qui évoque une fracture dans la confiance publique."
+  }
+};
+
+const DOCUMENTS = [
+  {
+    id: 'doc1',
+    title: "MÉMO SECDEF - OBJECTIFS US",
+    date: "24 MARS 1965",
+    type: "MÉMORANDUM INTERNE",
+    content: (Redaction, isUnlocked) => (
+      <div className="space-y-4">
+        <p className="font-bold border-b border-green-700 pb-2">CLASSIFICATION: TOP SECRET<br/>DE: JOHN T. MCNAUGHTON, SECRÉTAIRE ADJOINT À LA DÉFENSE<br/>À: ROBERT MCNAMARA, SECDEF</p>
+        <p>1. Les objectifs réels de l'intervention des États-Unis au Sud-Vietnam sont quantifiés comme suit :</p>
+        <ul className="list-disc pl-6 space-y-1">
+          <li>70% - Éviter une défaite américaine humiliante (pour préserver notre réputation de superpuissance).</li>
+          <li>20% - Maintenir le Sud-Vietnam (et les territoires adjacents) hors des mains de la Chine.</li>
+          <li>10% - Permettre au peuple du Sud-Vietnam de profiter d'un mode de vie meilleur et plus libre.</li>
+        </ul>
+        <p>
+          2. NOTRE VÉRITABLE STRATÉGIE : <Redaction id="dominos" 
+          unlockedText="La doctrine publique exige de sauver la démocratie, mais en privé, nous appliquons aveuglément la théorie des dominos. Si nous perdons ici, nous craignons que toute l'Asie du Sud-Est ne bascule, malgré le fait que nos analystes doutent de plus en plus de cette réaction en chaîne." />
+        </p>
+        <p>3. AVERTISSEMENT : Le public ne doit en aucun cas être informé que la démocratie vietnamienne ne représente que 10% de nos motivations réelles. L'effort de guerre repose sur cette perception.</p>
+      </div>
+    )
+  },
+  {
+    id: 'doc2',
+    title: "OPÉRATION ROLLING THUNDER",
+    date: "MAI 1964",
+    type: "PLANIFICATION MILITAIRE",
+    content: (Redaction, isUnlocked) => (
+      <div className="space-y-4">
+        <p className="font-bold border-b border-green-700 pb-2">CLASSIFICATION: TOP SECRET - EYES ONLY<br/>SUJET: PLANIFICATION DE L'ESCALADE AÉRIENNE</p>
+        <p>Les plans détaillés pour une campagne de bombardements massifs contre le Nord-Vietnam sont désormais finalisés. Les cibles industrielles et militaires ont été sélectionnées.</p>
+        <p>
+          CONTEXTE DE DÉCLENCHEMENT : <Redaction id="tonkin" 
+          unlockedText="Nous attendons actuellement un incident naval ou une provocation légitime pour justifier le déploiement de ces bombardiers auprès du Congrès et de l'opinion publique. Des opérations secrètes de la CIA (OPLAN 34A) sont en cours pour provoquer une réaction nord-vietnamienne dans le Golfe du Tonkin." />
+        </p>
+        <p>NOTE: Le Président a affirmé publiquement hier que "nous ne cherchons pas à étendre la guerre". Ce document contredit directement cette position présidentielle. Conserver en lieu sûr.</p>
+      </div>
+    )
+  },
+  {
+    id: 'doc3',
+    title: "ÉVALUATION DE L'IMPASSE",
+    date: "19 MAI 1967",
+    type: "RAPPORT d'ANALYSE",
+    content: (Redaction, isUnlocked) => (
+      <div className="space-y-4">
+        <p className="font-bold border-b border-green-700 pb-2">CLASSIFICATION: TOP SECRET<br/>AUTEUR: ROBERT MCNAMARA<br/>DESTINATAIRE: PRÉSIDENT LYNDON B. JOHNSON</p>
+        <p>Monsieur le Président,</p>
+        <p>L'image que l'opinion publique a de la guerre est celle d'un progrès constant. Nos généraux affirment publiquement qu'il y a "de la lumière au bout du tunnel". Cependant, mon évaluation personnelle de la situation est profondément différente.</p>
+        <p>
+          SITUATION SUR LE TERRAIN : <Redaction id="escalade" 
+          unlockedText="Il n'y a aucune preuve que notre stratégie d'usure réduise la volonté de l'ennemi. Malgré le déploiement de 470 000 soldats américains et des bombardements dépassant ceux de la Seconde Guerre mondiale, le Viet Cong continue de recruter plus vite que nous ne pouvons les éliminer. Une victoire militaire totale est désormais considérée comme impossible par nos analystes." />
+        </p>
+        <p>Nous continuons d'envoyer des jeunes Américains mourir pour maintenir une illusion de progrès.</p>
+      </div>
+    )
+  },
+  {
+    id: 'doc4',
+    title: "RAPPORT SUR L'OPINION PUBLIQUE",
+    date: "DÉCEMBRE 1967",
+    type: "ANALYSE INTERNE DU DÉPARTEMENT D'ÉTAT",
+    content: (Redaction, isUnlocked) => (
+      <div className="space-y-4">
+        <p className="font-bold border-b border-green-700 pb-2">CLASSIFICATION: SECRET<br/>SUJET: GESTION DE LA PERCEPTION PUBLIQUE</p>
+        <p>La presse commence à assembler les pièces du puzzle. Des journalistes indépendants sur le terrain rapportent une réalité qui contredit nos briefings officiels quotidiens à Saïgon (les "Five O'Clock Follies").</p>
+        <p>
+          ANALYSE DU RISQUE POLITIQUE : <Redaction id="credibility" 
+          unlockedText="La confiance du public s'effondre. Ce que la presse appelle le 'fossé de crédibilité' menace désormais la présidence elle-même. Si le grand public découvre l'existence des mémorandums prouvant que nous savions que la guerre était ingagnable depuis des années tout en augmentant les troupes, la réaction nationale serait incontrôlable." />
+        </p>
+        <p>Recommandation : Renforcer le message officiel de "victoire imminente" et discréditer les journalistes critiques.</p>
+      </div>
+    )
+  }
+];
+
+// --- STYLES CSS RETRO TERMINAL ---
+const crtStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+  body {
+    background-color: #050505;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .font-terminal {
+    font-family: 'VT323', monospace;
+  }
+
+  .crt::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 50;
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+  }
+
+  .scanlines {
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0),
+      rgba(255,255,255,0) 50%,
+      rgba(0,0,0,0.1) 50%,
+      rgba(0,0,0,0.1)
+    );
+    background-size: 100% 4px;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 49;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 5px rgba(34, 197, 94, 0.6);
+  }
+
+  .text-glow-red {
+    text-shadow: 0 0 5px rgba(239, 68, 68, 0.6);
+  }
+
+  .typing-cursor::after {
+    content: '█';
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #001100; 
+    border-left: 1px solid #004400;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #00aa00; 
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00ff00; 
+  }
+`;
+
+export default function App() {
+  const [booting, setBooting] = useState(true);
+  const [bootText, setBootText] = useState("");
+  const [activeTab, setActiveTab] = useState('docs');
+  const [selectedDocId, setSelectedDocId] = useState(DOCUMENTS[0].id);
+  const [unlockedRedactions, setUnlockedRedactions] = useState([]);
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [activeQuestionId, setActiveQuestionId] = useState(null);
+  const [modalFeedback, setModalFeedback] = useState(null);
+
+  // Editor state
+  const [editorialText, setEditorialText] = useState("");
+  const [showStatusMessage, setShowStatusMessage] = useState(null);
+
+  const fullBootSequence = [
+    "INITIALISATION DU SYSTÈME MAINFRAME RAND CORP...",
+    "VÉRIFICATION DE LA MÉMOIRE.......... OK",
+    "CONNEXION AU TERMINAL SÉCURISÉ DU DÉPARTEMENT DE LA DÉFENSE...",
+    "IDENTIFICATION REQUISE.",
+    "IDENTIFIANT: D. ELLSBERG",
+    "MOT DE PASSE: ************",
+    "AUTHENTIFICATION RÉUSSIE.",
+    "ATTENTION: ACCÈS DE NIVEAU 'TOP SECRET' DÉTECTÉ.",
+    "TÉLÉCHARGEMENT DU DOSSIER 'UNITED STATES – VIETNAM RELATIONS, 1945–1967'...",
+    "TERMINÉ. 47 VOLUMES RÉCUPÉRÉS.",
+    "LANCEMENT DE L'INTERFACE D'ANALYSE..."
+  ];
+
+  // Boot sequence effect
+  useEffect(() => {
+    if (!booting) return;
+    let currentLine = 0;
+    
+    const interval = setInterval(() => {
+      setBootText(prev => prev + fullBootSequence[currentLine] + "\n");
+      currentLine++;
+      
+      if (currentLine >= fullBootSequence.length) {
+        clearInterval(interval);
+        setTimeout(() => setBooting(false), 1500);
+      }
+    }, 400); 
+    
+    return () => clearInterval(interval);
+  }, [booting]);
+
+  const handleUnlockRequest = (id) => {
+    if (unlockedRedactions.includes(id)) return;
+    setActiveQuestionId(id);
+    setModalFeedback(null);
+    setModalOpen(true);
+  };
+
+  const handleAnswerSubmit = (index) => {
+    const q = QUESTIONS[activeQuestionId];
+    if (index === q.correctIndex) {
+      setModalFeedback({ type: 'success', text: "CLÉ DE DÉCHIFFREMENT ACCEPTÉE. Caviardage retiré." });
+      setUnlockedRedactions(prev => [...prev, activeQuestionId]);
+      setTimeout(() => {
+        setModalOpen(false);
+      }, 2000);
+    } else {
+      setModalFeedback({ type: 'error', text: "ACCÈS REFUSÉ. Réponse incorrecte. Réessayez." });
+    }
+  };
+
+  const handleExportEditorial = () => {
+    if (!editorialText.trim()) {
+      setShowStatusMessage({ type: 'error', text: "ERREUR : L'ÉDITORIAL EST VIDE. RÉDACTION REQUISE." });
+      setTimeout(() => setShowStatusMessage(null), 3000);
+      return;
+    }
+
+    const fullContent = `--- THE NEW YORK TIMES - 1971 ---
+DOSSIER : PENTAGON PAPERS LEAK
+SOURCE : DANIEL ELLSBERG
+----------------------------------
+
+${editorialText}
+
+----------------------------------
+DOCUMENT GÉNÉRÉ VIA TERMINAL SÉCURISÉ NYT
+----------------------------------`;
+
+    const element = document.createElement("a");
+    const file = new Blob([fullContent], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = "editorial_pentagon_papers.txt";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    setShowStatusMessage({ type: 'success', text: "PUBLICATION RÉUSSIE. FICHIER ENVOYÉ AUX ROTATIVES (TÉLÉCHARGÉ)." });
+    setTimeout(() => setShowStatusMessage(null), 5000);
+  };
+
+  const Redaction = ({ id, unlockedText }) => {
+    const isUnlocked = unlockedRedactions.includes(id);
+
+    if (isUnlocked) {
+      return (
+        <span className="text-green-300 font-bold bg-green-900 bg-opacity-30 border border-green-500 px-1 rounded inline-block animate-pulse">
+          <Unlock size={14} className="inline mr-1 mb-1" />
+          {unlockedText}
+        </span>
+      );
+    }
+
+    return (
+      <span 
+        onClick={() => handleUnlockRequest(id)}
+        className="bg-green-500 text-green-500 hover:bg-green-400 hover:text-green-400 cursor-pointer transition-colors duration-200 px-1 group relative inline-block select-none"
+        title="CLIQUEZ POUR DÉCHIFFRER"
+      >
+        <Lock size={14} className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-black opacity-0 group-hover:opacity-100 z-10" />
+        {unlockedText.replace(/[a-zA-Z0-9]/g, '█')}
+      </span>
+    );
+  };
+
+  const activeDoc = DOCUMENTS.find(d => d.id === selectedDocId);
+  const totalUnlocked = unlockedRedactions.length;
+  const progressPercentage = (totalUnlocked / Object.keys(QUESTIONS).length) * 100;
+
+  if (booting) {
+    return (
+      <>
+        <style>{crtStyles}</style>
+        <div className="min-h-screen bg-black text-green-500 font-terminal p-8 crt relative">
+          <div className="scanlines"></div>
+          <div className="max-w-4xl mx-auto whitespace-pre-wrap text-xl text-glow leading-relaxed">
+            {bootText}
+            <span className="typing-cursor"></span>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <style>{crtStyles}</style>
+      <div className="min-h-screen bg-black text-green-500 font-terminal p-4 md:p-8 crt relative flex flex-col h-screen">
+        <div className="scanlines"></div>
+        
+        {/* HEADER */}
+        <header className="border-b-2 border-green-700 pb-4 mb-4 flex justify-between items-end shrink-0 z-10">
+          <div>
+            <h1 className="text-3xl md:text-5xl font-bold text-glow flex items-center gap-3">
+              <Terminal size={36} />
+              PENTAGON_PAPERS.EXE
+            </h1>
+            <p className="text-green-700 text-lg mt-1 tracking-widest">DOSSIER 47 - OPÉRATIONS VIETNAM</p>
+          </div>
+          <div className="text-right hidden md:block text-glow">
+            <p>USER: D. ELLSBERG</p>
+            <p>CONNECTION SECURE: TRUE</p>
+            <div className="flex items-center gap-2 justify-end">
+              DÉCRYPTAGE: 
+              <div className="w-32 h-4 border border-green-700 p-[1px]">
+                <div className="h-full bg-green-500 transition-all duration-500" style={{width: `${progressPercentage}%`}}></div>
+              </div>
+              {totalUnlocked}/4
+            </div>
+          </div>
+        </header>
+
+        {/* MAIN INTERFACE */}
+        <div className="flex flex-col md:flex-row gap-6 flex-1 overflow-hidden z-10">
+          
+          {/* SIDEBAR */}
+          <div className="w-full md:w-64 flex flex-col shrink-0 gap-4">
+            
+            {/* Navigation Tabs */}
+            <div className="flex flex-col border border-green-700 p-2 space-y-2">
+              <button 
+                onClick={() => setActiveTab('docs')}
+                className={`flex items-center gap-2 p-2 text-left uppercase text-lg ${activeTab === 'docs' ? 'bg-green-900 text-green-100 font-bold' : 'hover:bg-green-900/50 text-green-600'}`}
+              >
+                <FileText size={18} />
+                Documents Secrets
+              </button>
+              <button 
+                onClick={() => setActiveTab('editor')}
+                className={`flex items-center gap-2 p-2 text-left uppercase text-lg ${activeTab === 'editor' ? 'bg-green-900 text-green-100 font-bold' : 'hover:bg-green-900/50 text-green-600'}`}
+              >
+                <Edit size={18} />
+                Éditeur (NY Times)
+              </button>
+            </div>
+
+            {/* Document List */}
+            <div className="flex-1 overflow-y-auto border border-green-700 p-2 hidden md:block">
+              <p className="text-green-700 mb-2 font-bold border-b border-green-800 pb-1">INDEX DES FICHIERS</p>
+              <div className="space-y-1">
+                {DOCUMENTS.map(doc => (
+                  <button
+                    key={doc.id}
+                    onClick={() => {
+                      setSelectedDocId(doc.id);
+                      setActiveTab('docs');
+                    }}
+                    className={`w-full text-left p-2 truncate ${selectedDocId === doc.id && activeTab === 'docs' ? 'bg-green-500 text-black font-bold' : 'hover:bg-green-900 text-green-500'}`}
+                  >
+                    {doc.id.toUpperCase()} - {doc.title.substring(0, 15)}...
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* System Status */}
+            <div className="border border-green-700 p-3 mt-auto text-sm text-green-600">
+              <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> STATUT: EN LIGNE</div>
+              <p>TRAÇAGE: DÉSACTIVÉ</p>
+              <p>IMPRESSION: NY_TIMES_PRINTER</p>
+            </div>
+          </div>
+
+          {/* CONTENT AREA */}
+          <div className="flex-1 border border-green-500 p-6 overflow-y-auto bg-black bg-opacity-80 shadow-[0_0_15px_rgba(34,197,94,0.1)] relative">
+            
+            {activeTab === 'docs' ? (
+              <div className="text-xl leading-relaxed text-glow">
+                <div className="flex justify-between items-start mb-8 border-b-2 border-green-500 pb-4">
+                  <div>
+                    <h2 className="text-3xl font-bold">{activeDoc.title}</h2>
+                    <p className="text-green-600">{activeDoc.type} - {activeDoc.date}</p>
+                  </div>
+                  <ShieldAlert className="text-green-700 opacity-50" size={48} />
+                </div>
+                
+                <div className="prose prose-invert prose-green max-w-none text-xl font-terminal">
+                  {activeDoc.content(Redaction, unlockedRedactions.includes(activeDoc.id))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full">
+                <div className="mb-4">
+                  <h2 className="text-3xl font-bold flex items-center gap-3"><Edit size={28}/> RÉDACTION DE L'ÉDITORIAL</h2>
+                  <p className="text-green-600 text-lg mt-2">
+                    INSTRUCTIONS: Vous êtes un journaliste du New York Times en 1971. En utilisant les informations déclassifiées, rédigez un éditorial explosif pour exposer le "fossé de crédibilité" au public.
+                  </p>
+                </div>
+                <textarea 
+                  className="flex-1 w-full bg-[#001100] text-green-400 border border-green-700 p-4 font-terminal text-xl focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400 resize-none"
+                  placeholder="The New York Times - Titre: [Écrivez votre titre ici]&#10;&#10;Au peuple américain..."
+                  value={editorialText}
+                  onChange={(e) => setEditorialText(e.target.value)}
+                ></textarea>
+                
+                <div className="mt-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-green-600">{editorialText.length} CARACTÈRES RÉDIGÉS</span>
+                    {showStatusMessage && (
+                      <span className={`text-sm font-bold animate-pulse ${showStatusMessage.type === 'success' ? 'text-green-400' : 'text-red-500'}`}>
+                        {showStatusMessage.text}
+                      </span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={handleExportEditorial}
+                    className="bg-green-700 text-black hover:bg-green-500 px-6 py-2 font-bold text-xl flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Download size={20} />
+                    PUBLIER (EXPORT TXT)
+                  </button>
+                </div>
+              </div>
+            )}
+            
+          </div>
+        </div>
+
+        {/* DECRYPTION MODAL */}
+        {modalOpen && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4">
+            <div className="border-2 border-green-500 bg-black p-6 md:p-8 max-w-2xl w-full shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+              <div className="flex items-center gap-3 text-2xl font-bold mb-6 border-b border-green-700 pb-4 text-glow">
+                <Lock className="text-green-500" />
+                PROTOCOLE DE DÉCHIFFREMENT REQUIS
+              </div>
+              
+              <p className="text-xl mb-6 leading-relaxed">
+                <span className="text-green-700">QUESTION DE SÉCURITÉ :</span><br/>
+                {QUESTIONS[activeQuestionId].question}
+              </p>
+
+              <div className="space-y-3 mb-6">
+                {QUESTIONS[activeQuestionId].options.map((opt, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => handleAnswerSubmit(idx)}
+                    className="w-full text-left p-3 border border-green-800 hover:bg-green-900 hover:border-green-500 text-lg flex items-center gap-3 transition-all"
+                  >
+                    <span className="text-green-700 font-bold">[{idx + 1}]</span> {opt}
+                  </button>
+                ))}
+              </div>
+
+              {modalFeedback && (
+                <div className={`p-4 mt-4 font-bold text-lg animate-pulse border ${modalFeedback.type === 'success' ? 'border-green-500 text-green-400 bg-green-900/30' : 'border-red-500 text-red-500 bg-red-900/30 text-glow-red'}`}>
+                  {modalFeedback.type === 'error' && <AlertTriangle className="inline mr-2" />}
+                  {modalFeedback.text}
+                </div>
+              )}
+
+              <div className="mt-8 flex justify-between items-center text-sm text-green-700">
+                <p>INDICE DÉTECTÉ : {QUESTIONS[activeQuestionId].hint}</p>
+                <button onClick={() => setModalOpen(false)} className="hover:text-green-400 underline">ANNULER</button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+      </div>
+    </>
+  );
+}
